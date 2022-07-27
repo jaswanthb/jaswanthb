@@ -1,0 +1,87 @@
+name: $(Date:yyyyMMdd).$(Rev:r)-$(Build.SourceBranchName)
+
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+- task: PowerShell@2
+
+  inputs:
+    targetType: 'inline'
+    script: |
+      #get all the changed rdl files from git repo in the last commit
+      $files=$(git diff HEAD HEAD~ --name-only "*.rdl")
+      
+      $folders = new-object collections.generic.list[object]
+      $source = '$(system.defaultworkingdirectory)\'
+      $dest = '$(system.defaultworkingdirectory)\working\'
+      $zippath = '$(system.defaultworkingdirectory)\output\'
+      
+      #Remove-Item -Path $dest"*" -Force -Recurse
+      
+      #get folder list that are changed and get distinct folder list
+      For ($i=0; $i -lt $files.count; $i++)
+      {
+          if(!$folders.Contains($files[$i].split('/')[0]) -and ($files[$i].split('/')[0] -ne "Test_Reports"))
+          {
+              $folders.Add($files[$i].split('/')[0])
+          }    
+      }
+            
+      foreach ($f in $folders)
+      {
+          #Create folders if not exist
+          #echo $dest$f
+          if (-not (Test-Path $dest$f))
+          {
+              New-Item $dest$f -ItemType Directory
+          }
+          else
+          {
+              echo 'Folder exists'
+          }
+      }
+      
+      For ($i=0; $i -lt $files.count; $i++)
+      {
+          #We have folders by here
+          #Copy files to respective folders
+          if($files[$i].split('/')[0] -ne 'Test_Reports_Deprecated')
+          {
+              $t = $dest+$files[$i].split('/')[0]
+              $s = $source + $files[$i]
+              $s = $s.Replace('/','\')
+              Copy-Item -Path $s -Destination $t -Verbose -Force
+          }
+      }
+
+      if (-not (Test-Path $zippath))
+          {
+              New-Item $zippath -ItemType Directory
+          }
+
+      Compress-Archive -LiteralPath $dest -DestinationPath $zippath'$(Build.BuildId)'.zip
+
+      $publishpath = $zippath+'$(Build.BuildId).zip'
+      echo 'pub'
+      $publishpath
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(system.defaultworkingdirectory)\output\'
+    ArtifactName: '$(Build.BuildId)'
+    publishLocation: 'Container'
+
+#- task: DeleteFiles@1
+#  inputs:
+#    SourceFolder: '$(system.defaultworkingdirectory)/working'
+#    Contents: '*.*'
+#    RemoveSourceFolder: true
+
