@@ -1,0 +1,14 @@
+steps:
+
+- task: ExtractFiles@1
+
+  displayName: 'Extract files '
+
+  inputs:
+
+    archiveFilePatterns: '$(Agent.ReleaseDirectory)\{Change to Artifactory path}\$(Build.BuildId)\$(Build.BuildId).zip'
+
+    destinationFolder: '$(System.DefaultWorkingDirectory)/{Change to Artifactory path}\ssrs-$(Build.BuildId)'
+
+    overwriteExistingFiles: true
+
